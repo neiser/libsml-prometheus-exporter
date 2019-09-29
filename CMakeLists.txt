@@ -34,8 +34,6 @@ add_library(prometheus-cpp-core SHARED IMPORTED)
 set_property(TARGET prometheus-cpp-core PROPERTY IMPORTED_LOCATION "${prometheus_cpp_lib_dir}/libprometheus-cpp-core.so")
 add_library(prometheus-cpp-pull SHARED IMPORTED)
 set_property(TARGET prometheus-cpp-pull PROPERTY IMPORTED_LOCATION "${prometheus_cpp_lib_dir}/libprometheus-cpp-pull.so")
-add_library(prometheus-cpp-push SHARED IMPORTED)
-set_property(TARGET prometheus-cpp-push PROPERTY IMPORTED_LOCATION "${prometheus_cpp_lib_dir}/libprometheus-cpp-push.so")
 
 
 include_directories("3rdparty/tclap/include" ${sml_inc_dir} ${prometheus_cpp_inc_dir} ${UUID_INCLUDE_DIRS})
@@ -43,6 +41,6 @@ include_directories("3rdparty/tclap/include" ${sml_inc_dir} ${prometheus_cpp_inc
 add_executable(libsml-prometheus-exporter libsml-prometheus-exporter.cxx)
 
 set_target_properties(libsml-prometheus-exporter PROPERTIES CXX_STANDARD 14)
-target_link_libraries(libsml-prometheus-exporter sml prometheus-cpp-pull prometheus-cpp-push prometheus-cpp-core ${UUID_LIBRARIES})
+target_link_libraries(libsml-prometheus-exporter sml prometheus-cpp-pull prometheus-cpp-core ${UUID_LIBRARIES})
 
 add_dependencies(libsml-prometheus-exporter project_libsml project_prometheus-cpp)
