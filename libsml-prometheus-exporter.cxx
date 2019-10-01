@@ -1,24 +1,3 @@
-// Copyright 2011 Juri Glass, Mathias Runge, Nadim El Sayed
-// DAI-Labor, TU-Berlin
-//
-// This file is part of libSML.
-// Thanks to Thomas Binder and Axel (tuxedo) for providing code how to
-// print OBIS data (see transport_receiver()).
-// https://community.openhab.org/t/using-a-power-meter-sml-with-openhab/21923
-//
-// libSML is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// libSML is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with libSML.  If not, see <http://www.gnu.org/licenses/>.
-
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -44,6 +23,10 @@
 #include <prometheus/registry.h>
 
 #include "unit.h"
+
+using namespace std;
+
+map<string, prometheus::Family<prometheus::Gauge> *> gauges;
 
 int serial_port_open(const char *device) {
   int bits;
@@ -87,14 +70,13 @@ int serial_port_open(const char *device) {
 }
 
 void transport_receiver(unsigned char *buffer, size_t buffer_len) {
-  int i;
   // the buffer contains the whole message, with transport escape sequences.
   // these escape sequences are stripped here.
   sml_file *file = sml_file_parse(buffer + 8, buffer_len - 16);
   // the sml file is parsed now
 
   // read here some values ...
-  for (i = 0; i < file->messages_len; i++) {
+  for (int i = 0; i < file->messages_len; i++) {
     sml_message *message = file->messages[i];
     if (*message->message_body->tag == SML_MESSAGE_GET_LIST_RESPONSE) {
       sml_list *entry;
@@ -102,45 +84,55 @@ void transport_receiver(unsigned char *buffer, size_t buffer_len) {
       body = (sml_get_list_response *)message->message_body->data;
       for (entry = body->val_list; entry != NULL; entry = entry->next) {
         if (!entry->value) { // do not crash on null value
-          fprintf(stderr, "Error in data stream. entry->value should not be "
-                          "NULL. Skipping this.\n");
+          cerr << "Error in data stream. entry->value should not be NULL. "
+                  "Skipping this."
+               << endl;
           continue;
         }
-        if (entry->value->type == SML_TYPE_OCTET_STRING) {
-          char *str;
-          printf("%d-%d:%d.%d.%d*%d#%s#\n", entry->obj_name->str[0],
-                 entry->obj_name->str[1], entry->obj_name->str[2],
-                 entry->obj_name->str[3], entry->obj_name->str[4],
-                 entry->obj_name->str[5],
-                 sml_value_to_strhex(entry->value, &str, true));
-          free(str);
-        } else if (entry->value->type == SML_TYPE_BOOLEAN) {
-          printf("%d-%d:%d.%d.%d*%d#%s#\n", entry->obj_name->str[0],
-                 entry->obj_name->str[1], entry->obj_name->str[2],
-                 entry->obj_name->str[3], entry->obj_name->str[4],
-                 entry->obj_name->str[5],
-                 entry->value->data.boolean ? "true" : "false");
-        } else if (((entry->value->type & SML_TYPE_FIELD) ==
-                    SML_TYPE_INTEGER) ||
-                   ((entry->value->type & SML_TYPE_FIELD) ==
-                    SML_TYPE_UNSIGNED)) {
+        if (((entry->value->type & SML_TYPE_FIELD) == SML_TYPE_INTEGER) ||
+            ((entry->value->type & SML_TYPE_FIELD) == SML_TYPE_UNSIGNED)) {
           double value = sml_value_to_double(entry->value);
           int scaler = (entry->scaler) ? *entry->scaler : 0;
           int prec = -scaler;
           if (prec < 0)
             prec = 0;
           value = value * pow(10, scaler);
-          printf("%d-%d:%d.%d.%d*%d#%.*f#", entry->obj_name->str[0],
-                 entry->obj_name->str[1], entry->obj_name->str[2],
-                 entry->obj_name->str[3], entry->obj_name->str[4],
-                 entry->obj_name->str[5], prec, value);
-          const char *unit = NULL;
-          if (entry->unit && // do not crash on null (unit is optional)
-              (unit = dlms_get_unit((unsigned char)*entry->unit)) != NULL)
-            printf("%s", unit);
-          printf("\n");
-          // flush the stdout puffer, that pipes work without waiting
-          fflush(stdout);
+
+          stringstream ss;
+          ss << +entry->obj_name->str[0] << "-" << +entry->obj_name->str[1]
+             << ":" << +entry->obj_name->str[2] << "."
+             << +entry->obj_name->str[3] << "." << +entry->obj_name->str[4]
+             << "*" << +entry->obj_name->str[5];
+          string obis_id = ss.str();
+
+          string unit = "none";
+          if (entry->unit != nullptr) {
+            auto it_unit = unit_table.find((unsigned char)*entry->unit);
+            if (it_unit != unit_table.cend()) {
+              unit = it_unit->second;
+            }
+          }
+
+          auto it_gauge = gauges.find(obis_id);
+          if (it_gauge == gauges.cend()) {
+            cerr << "No gauge found for OBIS " << obis_id << " with value "
+                 << value << " " << unit << endl;
+            continue;
+          }
+
+          auto &gauge = *it_gauge->second;
+          gauge.Add({{"unit", unit}}).Set(value);
+
+          //          printf("%d-%d:%d.%d.%d*%d#%.*f#", entry->obj_name->str[0],
+          //                 entry->obj_name->str[1], entry->obj_name->str[2],
+          //                 entry->obj_name->str[3], entry->obj_name->str[4],
+          //                 entry->obj_name->str[5], prec, value);
+          //          const char *unit = NULL;
+          //          if (entry->unit && // do not crash on null (unit is
+          //          optional)
+          //              (unit = dlms_get_unit((unsigned char)*entry->unit)) !=
+          //              NULL)
+          //            printf("%s", unit);
         }
       }
     }
@@ -154,29 +146,48 @@ int main(int argc, char *argv[]) {
   try {
     TCLAP::CmdLine cmd("libsml-prometheus-exporter", ' ', "0.1");
 
-    TCLAP::ValueArg<std::string> arg_device(
-        "d", "device", "Device to read from", false, "/dev/ttyUSB0", "string");
+    TCLAP::ValueArg<string> arg_device("d", "device", "Device to read from",
+                                       false, "/dev/ttyUSB0", "string");
     cmd.add(arg_device);
 
-    TCLAP::MultiArg<std::string> arg_metric(
-        "m", "metric", "Specify metric to OBIS ID", false, "int");
-    cmd.add(arg_metric);
+    TCLAP::ValueArg<string> arg_prefix("p", "prefix", "Prefix for metric names",
+                                       false, "", "prefix");
+    cmd.add(arg_prefix);
+
+    TCLAP::MultiArg<string> arg_metrics(
+        "m", "metric", "Specify metric to OBIS ID", false, "obis id");
+    cmd.add(arg_metrics);
 
     cmd.parse(argc, argv);
 
+    auto registry = make_shared<prometheus::Registry>();
+
+    for (const auto &arg_metric : arg_metrics.getValue()) {
+
+      size_t idx = arg_metric.find("=");
+      if (idx == string::npos) {
+        cerr << "Ignoring metric specification without =" << endl;
+        continue;
+      }
+
+      string obis_id = arg_metric.substr(0, idx);
+      string metric_name = arg_prefix.getValue() + arg_metric.substr(idx + 1);
+
+      if (gauges.find(obis_id) != gauges.cend()) {
+        cerr << "Not adding metric for OBIS " << obis_id << " again" << endl;
+      }
+
+      auto &gauge_family = prometheus::BuildGauge()
+                               .Name(metric_name)
+                               .Labels({{"obis_id", obis_id}})
+                               .Help("OBIS " + obis_id)
+                               .Register(*registry);
+      gauges.insert(make_pair(obis_id, addressof(gauge_family)));
+      cout << "Adding gauge " << metric_name << " for OBIS ID " << obis_id
+           << endl;
+    }
+
     prometheus::Exposer exposer{"127.0.0.1:8080"};
-
-    auto registry = std::make_shared<prometheus::Registry>();
-
-    // add a new counter family to the registry (families combine values with
-    // the same name, but distinct label dimensions)
-    auto &gauge_family = prometheus::BuildGauge()
-                             .Name("time_running_seconds_total")
-                             .Help("How many seconds is this server running?")
-                             .Register(*registry);
-
-    auto &gauge = gauge_family.Add({});
-
     exposer.RegisterCollectable(registry);
 
     // open serial port
@@ -186,8 +197,6 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
 
-    gauge.Set(42);
-
     // listen on the serial device, this call is blocking.
     sml_transport_listen(fd, &transport_receiver);
     close(fd);
@@ -196,7 +205,6 @@ int main(int argc, char *argv[]) {
 
   } catch (TCLAP::ArgException &e) // catch any exceptions
   {
-    std::cerr << "error: " << e.error() << " for arg " << e.argId()
-              << std::endl;
+    cerr << "error: " << e.error() << " for arg " << e.argId() << endl;
   }
 }
