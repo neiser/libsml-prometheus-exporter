@@ -1,3 +1,4 @@
+#!/bin/sh
 ./build/libsml-prometheus-exporter -d /dev/ttyUSB1 \
   -b '127.0.0.1:8080' \
   -p 'smartmeter_home_' \

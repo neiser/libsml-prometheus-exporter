@@ -1,3 +1,4 @@
+#!/bin/sh
 ./build/libsml-prometheus-exporter -d /dev/ttyUSB0 \
   -b '127.0.0.1:8081' \
   -p 'smartmeter_heatpump_' \

@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus exporter for Smartmeter Home
+After=network.target
+
+[Service]
+User=prometheus
+Type=simple
+Restart=on-failure
+RestartSec=3
+ExecStart=/home/prometheus/libsml-prometheus-exporter/run_home.sh
+
+[Install]
+WantedBy=multi-user.target
