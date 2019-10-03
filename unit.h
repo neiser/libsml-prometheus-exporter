@@ -1,6 +1,6 @@
 #include <map>
 
-std::map<unsigned char, std::string> unit_table{
+std::map<uint8_t, std::string> unit_table{
     {1, "a"},  // time				year
                // 52*7*24*60*60 s
     {2, "mo"}, // time				month
@@ -62,8 +62,8 @@ std::map<unsigned char, std::string> unit_table{
     {42, "A/m"},    // magnetic field strength (H)	ampere per metre	A/m
     {43, "H"},      // inductance (L)		henry			H = Wb/A
     {44, "Hz"},     // frequency (f, ω)		hertz			1/s
-    {45, "1/(Wh)"}, // R_W							(Active energy meter
-                    // constant or pulse value)
+    {45, "1/(Wh)"}, // R_W							(Active energy
+                    // meter constant or pulse value)
     {46, "1/(varh)"},    // R_B
                          // (reactive energy meter constant or pulse value)
     {47, "1/(VAh)"},     // R_S
