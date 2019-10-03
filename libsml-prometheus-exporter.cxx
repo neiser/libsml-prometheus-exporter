@@ -176,6 +176,8 @@ int main(int argc, char* argv[]) {
     prometheus::Exposer exposer{arg_bindaddress.getValue()};
     exposer.RegisterCollectable(registry);
 
+    cout << "Providing metrics on " << arg_bindaddress.getValue() << endl;
+
     // open serial port
     int fd = serial_port_open(arg_device.getValue().c_str());
     if (fd < 0) {
