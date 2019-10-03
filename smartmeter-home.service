@@ -7,7 +7,8 @@ User=prometheus
 Type=simple
 Restart=on-failure
 RestartSec=3
-ExecStart=/home/prometheus/libsml-prometheus-exporter/run_home.sh
+ExecStart=./run_home.sh
+WorkingDirectory=/home/prometheus/libsml-prometheus-exporter
 
 [Install]
 WantedBy=multi-user.target
