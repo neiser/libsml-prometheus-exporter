@@ -7,7 +7,7 @@ find_package(UUID REQUIRED)
 
 ExternalProject_Add(project_libsml
   GIT_REPOSITORY    https://github.com/volkszaehler/libsml.git
-  GIT_TAG           d435fb3f172f1c78053d4de08c3d94256e747696
+  GIT_TAG           1.0.0
   GIT_SHALLOW       YES
   BUILD_COMMAND     make -C sml
   CONFIGURE_COMMAND ""
@@ -22,7 +22,7 @@ set_property(TARGET sml PROPERTY IMPORTED_LOCATION "${sml_lib_dir}/libsml.a")
 
 ExternalProject_Add(project_prometheus-cpp
   GIT_REPOSITORY    https://github.com/jupp0r/prometheus-cpp
-  GIT_TAG           a0d7c52ac4b48f4f2bb32f5c6f452205594afe1a
+  GIT_TAG           v0.8.0
   GIT_SHALLOW       YES
   CMAKE_ARGS        -DBUILD_SHARED_LIBS=ON
   INSTALL_COMMAND   make DESTDIR=<INSTALL_DIR> install
