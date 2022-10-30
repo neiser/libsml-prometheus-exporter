@@ -22,13 +22,13 @@ set_property(TARGET sml PROPERTY IMPORTED_LOCATION "${sml_lib_dir}/libsml.a")
 
 ExternalProject_Add(project_prometheus-cpp
   GIT_REPOSITORY    https://github.com/jupp0r/prometheus-cpp
-  GIT_TAG           v0.8.0
+  GIT_TAG           v1.0.1
   GIT_SHALLOW       YES
   CMAKE_ARGS        -DBUILD_SHARED_LIBS=ON
   INSTALL_COMMAND   make DESTDIR=<INSTALL_DIR> install
 )
 ExternalProject_Get_Property(project_prometheus-cpp INSTALL_DIR)
-set(prometheus_cpp_lib_dir "${INSTALL_DIR}/usr/local/lib")
+set(prometheus_cpp_lib_dir "${INSTALL_DIR}/usr/local/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
 set(prometheus_cpp_inc_dir "${INSTALL_DIR}/usr/local/include")
 add_library(prometheus-cpp-core SHARED IMPORTED)
 set_property(TARGET prometheus-cpp-core PROPERTY IMPORTED_LOCATION "${prometheus_cpp_lib_dir}/libprometheus-cpp-core.so")
